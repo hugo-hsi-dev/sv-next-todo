@@ -4,7 +4,7 @@ import { mkdirSync } from "fs";
 import { dirname, join } from "path";
 import * as schema from "./schema";
 
-const dbPath = join(process.cwd(), "local.db");
+const dbPath = process.env.DATABASE_URL ?? join(process.cwd(), "local.db");
 mkdirSync(dirname(dbPath), { recursive: true });
 
 const sqlite = new Database(dbPath);

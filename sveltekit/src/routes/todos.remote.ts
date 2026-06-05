@@ -3,6 +3,7 @@ import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 
 import { db } from '$lib/server/db';
 import { todos, type Todo } from '$lib/server/db/schema';
+import { getTodoTitleError, parseTodoTitle } from '$lib/todo-validation';
 
 export type TodoSummary = Pick<Todo, 'id' | 'createdAt'>;
 export type TodoItem = Pick<
@@ -44,16 +45,13 @@ export const getTodo = query.batch('unchecked', async (ids: number[]) => {
 });
 
 export const saveTodo = form('unchecked', async (data: TodoFormInput, issue) => {
-	const title = data.title.trim();
+	const error = getTodoTitleError(data.title);
 
-	if (!title) {
-		throw issue.title('Title required');
+	if (error) {
+		throw issue.title(error);
 	}
 
-	if (title.length > 120) {
-		throw issue.title('Title max 120 chars');
-	}
-
+	const title = parseTodoTitle(data.title);
 	const updatedAt = now();
 	const id = data.id ? Number(data.id) : undefined;
 

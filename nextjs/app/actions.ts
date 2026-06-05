@@ -4,6 +4,7 @@ import { and, desc, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "../db";
 import { todos, type Todo } from "../db/schema";
+import { parseTodoTitle } from "@/lib/todo-validation";
 
 export type TodoView = {
   id: number;
@@ -29,13 +30,6 @@ function toView(todo: Todo): TodoView {
   };
 }
 
-function cleanTitle(value: unknown) {
-  const title = String(value ?? "").trim();
-  if (!title) throw new Error("Title required");
-  if (title.length > 120) throw new Error("Title max 120 chars");
-  return title;
-}
-
 function refresh() {
   revalidatePath("/");
 }
@@ -54,7 +48,7 @@ export async function createTodo(input: TodoInput) {
   const now = new Date();
   const [todo] = await db
     .insert(todos)
-    .values({ title: cleanTitle(input.title), completed: false, createdAt: now, updatedAt: now })
+    .values({ title: parseTodoTitle(input.title), completed: false, createdAt: now, updatedAt: now })
     .returning();
 
   refresh();
@@ -64,7 +58,7 @@ export async function createTodo(input: TodoInput) {
 export async function updateTodo(id: number, input: TodoInput) {
   const [todo] = await db
     .update(todos)
-    .set({ title: cleanTitle(input.title), updatedAt: new Date() })
+    .set({ title: parseTodoTitle(input.title), updatedAt: new Date() })
     .where(and(eq(todos.id, id), isNull(todos.deletedAt)))
     .returning();
 

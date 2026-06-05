@@ -1,4 +1,12 @@
 <script lang="ts">
+	import Button from '$lib/components/ui/button.svelte';
+	import Card from '$lib/components/ui/card.svelte';
+	import Input from '$lib/components/ui/input.svelte';
+	import {
+		canOptimisticallyAdd,
+		createOptimisticTodo,
+		nextOptimisticIds
+	} from './todo-page-helpers';
 	import {
 		deleteTodo,
 		getTodo,
@@ -15,10 +23,7 @@
 	let undoTimer: ReturnType<typeof setTimeout> | undefined;
 
 	function optimisticIds(removeId?: number, addTodo?: TodoItem) {
-		return todoIds.withOverride((ids: TodoSummary[]) => {
-			const next = removeId ? ids.filter(({ id }) => id !== removeId) : ids;
-			return addTodo ? [{ id: addTodo.id, createdAt: addTodo.createdAt }, ...next] : next;
-		});
+		return todoIds.withOverride((ids: TodoSummary[]) => nextOptimisticIds(ids, removeId, addTodo));
 	}
 
 	function setUndo(todo: TodoItem) {
@@ -48,53 +53,32 @@
 			class="flex gap-2"
 			{...saveTodo.enhance(async (form) => {
 				const title = String(form.fields.title.value() ?? '').trim();
-				const tempId = -Date.now();
-				const now = new Date();
-				const optimisticTodo: TodoItem = {
-					id: tempId,
-					title,
-					completed: false,
-					deletedAt: null,
-					createdAt: now,
-					updatedAt: now
-				};
+				const optimisticTodo = createOptimisticTodo(title);
+				const shouldOptimisticallyAdd = canOptimisticallyAdd(title);
 
-				const canOptimisticallyAdd = title && title.length <= 120;
-
-				if (canOptimisticallyAdd) {
-					optimisticTodos[tempId] = optimisticTodo;
+				if (shouldOptimisticallyAdd) {
+					optimisticTodos[optimisticTodo.id] = optimisticTodo;
 				}
 
 				try {
 					await form
 						.submit()
-						.updates(canOptimisticallyAdd ? optimisticIds(undefined, optimisticTodo) : todoIds);
+						.updates(shouldOptimisticallyAdd ? optimisticIds(undefined, optimisticTodo) : todoIds);
 					form.element.reset();
 				} finally {
-					delete optimisticTodos[tempId];
+					delete optimisticTodos[optimisticTodo.id];
 				}
 			})}
 		>
-			<input
-				class="h-9 flex-1 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-950 transition outline-none focus:border-zinc-950"
-				name="title"
-				maxlength="120"
-				required
-				placeholder="Add todo"
-			/>
-			<button
-				class="h-9 rounded-md bg-zinc-950 px-3 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:opacity-50"
-				disabled={saveTodo.pending > 0}
-			>
-				Add
-			</button>
+			<Input class="flex-1" name="title" maxlength="120" required placeholder="Add todo" />
+			<Button disabled={saveTodo.pending > 0}>Add</Button>
 		</form>
 
 		{#if saveTodo.result}
 			<p class="text-sm text-red-600">Could not save todo.</p>
 		{/if}
 
-		<div class="divide-y divide-zinc-200 rounded-md border border-zinc-200 bg-white">
+		<Card class="divide-y divide-zinc-200">
 			{#if todoIds.loading}
 				<p class="px-3 py-6 text-center text-sm text-zinc-500">Loading...</p>
 			{:else if todoIds.current?.length}
@@ -113,12 +97,12 @@
 						{#if todo.current}
 							{@const editForm = saveTodo.for(todo.current.id)}
 							<div class="grid grid-cols-[auto_1fr_auto_auto] items-center gap-2 px-3 py-2">
-								<input
+								<Input
 									class="size-4"
 									type="checkbox"
 									checked={todo.current.completed}
 									disabled={toggleTodo.pending > 0}
-									onchange={(event) => {
+									onchange={(event: Event & { currentTarget: HTMLInputElement }) => {
 										const completed = event.currentTarget.checked;
 										void toggleTodo({ id: todo.current.id, completed }).updates(
 											todo.withOverride((item) => ({ ...item, completed }))
@@ -140,9 +124,8 @@
 									})}
 								>
 									<input type="hidden" name="id" value={todo.current.id} />
-									<input
-										class:line-through={todo.current.completed}
-										class="h-8 w-full rounded-md border border-transparent px-2 text-sm text-zinc-950 transition outline-none hover:border-zinc-200 focus:border-zinc-950 disabled:text-zinc-400"
+									<Input
+										class={`h-8 border-transparent px-2 hover:border-zinc-200 ${todo.current.completed ? 'line-through' : ''}`}
 										name="title"
 										value={todo.current.title}
 										maxlength="120"
@@ -152,17 +135,19 @@
 									/>
 								</form>
 
-								<button
-									class="h-8 rounded-md px-2 text-sm text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-950 disabled:opacity-50"
+								<Button
+									variant="ghost"
+									size="sm"
 									type="submit"
 									form={`todo-${todo.current.id}`}
 									disabled={editForm.pending > 0}
 								>
 									Save
-								</button>
+								</Button>
 
-								<button
-									class="h-8 rounded-md px-2 text-sm text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-950 disabled:opacity-50"
+								<Button
+									variant="ghost"
+									size="sm"
 									disabled={deleteTodo.pending > 0}
 									onclick={() => {
 										setUndo(todo.current);
@@ -170,7 +155,7 @@
 									}}
 								>
 									Delete
-								</button>
+								</Button>
 							</div>
 						{/if}
 					{/if}
@@ -178,7 +163,7 @@
 			{:else}
 				<p class="px-3 py-6 text-center text-sm text-zinc-500">No todos yet</p>
 			{/if}
-		</div>
+		</Card>
 	</section>
 </main>
 
@@ -187,8 +172,8 @@
 		class="fixed inset-x-4 bottom-4 mx-auto flex max-w-md items-center justify-between gap-3 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm shadow-lg"
 	>
 		<span class="min-w-0 truncate text-zinc-700">Deleted {undoTodo.title}</span>
-		<button
-			class="h-8 rounded-md bg-zinc-950 px-3 font-medium text-white transition hover:bg-zinc-800"
+		<Button
+			size="sm"
 			onclick={() => {
 				const todo = undoTodo;
 				undoTodo = null;
@@ -198,6 +183,6 @@
 			}}
 		>
 			Undo
-		</button>
+		</Button>
 	</div>
 {/if}
