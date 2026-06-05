@@ -71,7 +71,7 @@ export function TodoApp({ initialTodos }: { initialTodos: TodoView[] }) {
               </div>
             )}
           </createForm.Field>
-          <Button size="iconLg" className="shrink-0" disabled={isPending} title="Add" type="submit">
+          <Button size="icon-lg" className="shrink-0" disabled={isPending} title="Add" type="submit">
             <Plus size={18} />
           </Button>
         </form>

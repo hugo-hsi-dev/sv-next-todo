@@ -1,7 +1,7 @@
 <script lang="ts">
-	import Button from '$lib/components/ui/button.svelte';
-	import Card from '$lib/components/ui/card.svelte';
-	import Input from '$lib/components/ui/input.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
+	import { Input } from '$lib/components/ui/input';
 	import {
 		canOptimisticallyAdd,
 		createOptimisticTodo,
@@ -70,7 +70,7 @@
 				}
 			})}
 		>
-			<Input class="flex-1" name="title" maxlength="120" required placeholder="Add todo" />
+			<Input class="flex-1" name="title" maxlength={120} required placeholder="Add todo" />
 			<Button disabled={saveTodo.pending > 0}>Add</Button>
 		</form>
 
@@ -78,7 +78,7 @@
 			<p class="text-sm text-red-600">Could not save todo.</p>
 		{/if}
 
-		<Card class="divide-y divide-zinc-200">
+		<Card.Root class="gap-0 divide-y divide-zinc-200 p-0">
 			{#if todoIds.loading}
 				<p class="px-3 py-6 text-center text-sm text-zinc-500">Loading...</p>
 			{:else if todoIds.current?.length}
@@ -128,7 +128,7 @@
 										class={`h-8 border-transparent px-2 hover:border-zinc-200 ${todo.current.completed ? 'line-through' : ''}`}
 										name="title"
 										value={todo.current.title}
-										maxlength="120"
+										maxlength={120}
 										required
 										disabled={editForm.pending > 0}
 										aria-label="Todo title"
@@ -163,7 +163,7 @@
 			{:else}
 				<p class="px-3 py-6 text-center text-sm text-zinc-500">No todos yet</p>
 			{/if}
-		</Card>
+		</Card.Root>
 	</section>
 </main>
 
