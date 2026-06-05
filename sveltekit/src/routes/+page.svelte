@@ -112,7 +112,7 @@
 						{@const todo = getTodo(summary.id)}
 						{#if todo.current}
 							{@const editForm = saveTodo.for(todo.current.id)}
-							<div class="grid grid-cols-[auto_1fr_auto] items-center gap-2 px-3 py-2">
+							<div class="grid grid-cols-[auto_1fr_auto_auto] items-center gap-2 px-3 py-2">
 								<input
 									class="size-4"
 									type="checkbox"
@@ -129,6 +129,7 @@
 
 								<form
 									class="min-w-0"
+									id={`todo-${todo.current.id}`}
 									{...editForm.enhance(async (form) => {
 										const title = String(form.fields.title.value() ?? '').trim();
 										await form
@@ -150,6 +151,15 @@
 										aria-label="Todo title"
 									/>
 								</form>
+
+								<button
+									class="h-8 rounded-md px-2 text-sm text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-950 disabled:opacity-50"
+									type="submit"
+									form={`todo-${todo.current.id}`}
+									disabled={editForm.pending > 0}
+								>
+									Save
+								</button>
 
 								<button
 									class="h-8 rounded-md px-2 text-sm text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-950 disabled:opacity-50"
