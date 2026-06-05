@@ -1,0 +1,14 @@
+{
+  "name": "sv-next-todo",
+  "private": true,
+  "scripts": {
+    "dev:next": "pnpm --dir nextjs dev",
+    "dev:svelte": "pnpm --dir sveltekit dev",
+    "check:next": "pnpm --dir nextjs lint && pnpm --dir nextjs build",
+    "check:svelte": "pnpm --dir sveltekit check && pnpm --dir sveltekit lint && pnpm --dir sveltekit build",
+    "check": "pnpm check:next && pnpm check:svelte",
+    "db:push:next": "pnpm --dir nextjs db:push",
+    "db:push:svelte": "pnpm --dir sveltekit db:push",
+    "db:push": "pnpm db:push:next && pnpm db:push:svelte"
+  }
+}
