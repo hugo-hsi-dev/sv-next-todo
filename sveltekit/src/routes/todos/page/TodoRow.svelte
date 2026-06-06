@@ -1,109 +1,97 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
+	import { Checkbox } from '$lib/components/ui/checkbox';
 	import { Input } from '$lib/components/ui/input';
-	import { deleteTodo, listTodos, saveTodo, toggleTodo } from '../../todos.remote';
-	import { TODO_TITLE_MAX_LENGTH, saveTodoSchema } from '../schema';
-	import type { TodoItem } from '../type';
+	import {
+		deleteTodo,
+		editTodo,
+		getTodoDetails,
+		listTodoIds,
+		restoreTodo,
+		toggleTodo
+	} from '../../todos.remote';
+	import { editTodoSchema } from '../schema';
+	import { toast } from 'svelte-sonner';
 
-	let {
-		todo,
-		setUndo
-	}: {
-		todo: TodoItem;
-		setUndo: () => void;
-	} = $props();
-
-	let editForm = $derived(saveTodo.for(todo.id));
-	let titleErrorId = $derived(`todo-${todo.id}-title-error`);
-	let deleting = $state(false);
-	let toggling = $state(false);
-
-	async function save(
-		form: Omit<typeof editForm, 'enhance' | 'element'> & { element: HTMLFormElement }
-	) {
-		const title = form.fields.title.value()!;
-
-		await form
-			.submit()
-			.updates(
-				listTodos().withOverride((items: TodoItem[]) =>
-					items.map((item) =>
-						item.id === todo.id ? { ...item, title, updatedAt: new Date() } : item
-					)
-				)
-			);
-	}
-
-	async function toggle(completed: boolean) {
-		toggling = true;
-		try {
-			await toggleTodo({ id: todo.id, completed }).updates(
-				listTodos().withOverride((items: TodoItem[]) =>
-					items.map((item) => (item.id === todo.id ? { ...item, completed } : item))
-				)
-			);
-		} finally {
-			toggling = false;
-		}
-	}
-
-	async function deleteAndUndo() {
-		setUndo();
-		deleting = true;
-		try {
-			await deleteTodo(todo.id).updates(
-				listTodos().withOverride((items: TodoItem[]) => items.filter(({ id }) => id !== todo.id))
-			);
-		} finally {
-			deleting = false;
-		}
-	}
+	let { id }: { id: number } = $props();
+	const titleErrorId = $props.id();
 </script>
 
-<form
-	class="flex items-start gap-2 px-3 py-2"
-	{...editForm.preflight(saveTodoSchema).enhance(save)}
-	oninput={() => editForm.validate()}
->
-	<input {...editForm.fields.id.as('hidden', todo.id)} />
-	<input
-		class="mt-2 size-4 shrink-0"
-		type="checkbox"
-		checked={todo.completed}
-		disabled={toggling}
-		onchange={(event) => toggle(event.currentTarget.checked)}
-		aria-label="Toggle todo"
-	/>
+{#if await getTodoDetails(id)}
+	<form
+		class="flex items-start gap-2 px-3 py-2"
+		{...editTodo
+			.for(id)
+			.preflight(editTodoSchema)
+			.enhance(async (form) => {
+				const title = form.fields.title.value()!;
 
-	<div class="min-w-0 flex-1">
-		<Input
-			class={`h-8 border-transparent px-2 hover:border-zinc-200 ${todo.completed ? 'line-through' : ''}`}
-			{...editForm.fields.title.as('text', todo.title)}
-			maxlength={TODO_TITLE_MAX_LENGTH}
-			disabled={editForm.pending > 0}
-			aria-label="Todo title"
-			aria-describedby={titleErrorId}
+				await form
+					.submit()
+					.updates(
+						getTodoDetails(id).withOverride((todo) => ({ ...todo, title, updatedAt: new Date() }))
+					);
+			})}
+		oninput={() => editTodo.for(id).validate()}
+	>
+		<input {...editTodo.for(id).fields.id.as('hidden', id)} />
+		<Checkbox
+			class="mt-2"
+			checked={(await getTodoDetails(id)).completed}
+			disabled={toggleTodo.pending > 0}
+			onCheckedChange={(completed) =>
+				void toggleTodo({ id, completed }).updates(
+					getTodoDetails(id).withOverride((todo) => ({ ...todo, completed }))
+				)}
+			aria-label="Toggle todo"
 		/>
 
-		<div id={titleErrorId} class="space-y-1 pt-1">
-			{#each editForm.fields.title.issues() as issue (issue.message)}
-				<p class="text-sm text-red-600">{issue.message}</p>
-			{/each}
+		<div class="min-w-0 flex-1">
+			<Input
+				class={`h-8 border-transparent px-2 hover:border-zinc-200 ${(await getTodoDetails(id)).completed ? 'line-through' : ''}`}
+				{...editTodo.for(id).fields.title.as('text', (await getTodoDetails(id)).title)}
+				disabled={editTodo.for(id).pending > 0}
+				aria-label="Todo title"
+				aria-describedby={titleErrorId}
+			/>
+
+			<div id={titleErrorId} class="space-y-1 pt-1">
+				{#each editTodo.for(id).fields.title.issues() as issue (issue.message)}
+					<p class="text-sm text-red-600">{issue.message}</p>
+				{/each}
+			</div>
 		</div>
-	</div>
 
-	<Button class="shrink-0" variant="ghost" size="sm" type="submit" disabled={editForm.pending > 0}>
-		Save
-	</Button>
+		<Button
+			class="shrink-0"
+			variant="ghost"
+			size="sm"
+			type="submit"
+			disabled={editTodo.for(id).pending > 0}
+		>
+			Save
+		</Button>
 
-	<Button
-		class="shrink-0"
-		variant="ghost"
-		size="sm"
-		type="button"
-		disabled={deleting}
-		onclick={deleteAndUndo}
-	>
-		Delete
-	</Button>
-</form>
+		<Button
+			class="shrink-0"
+			variant="ghost"
+			size="sm"
+			type="button"
+			disabled={deleteTodo.pending > 0}
+			onclick={async () => {
+				toast(`Deleted ${(await getTodoDetails(id)).title}`, {
+					action: {
+						label: 'Undo',
+						onClick: () => void restoreTodo(id).updates(listTodoIds(), getTodoDetails(id))
+					}
+				});
+
+				void deleteTodo(id).updates(
+					listTodoIds().withOverride((ids) => ids.filter((todoId) => todoId !== id))
+				);
+			}}
+		>
+			Delete
+		</Button>
+	</form>
+{/if}
