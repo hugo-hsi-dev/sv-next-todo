@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
+	import * as Tooltip from '$lib/components/ui/tooltip';
+	import PlusIcon from 'phosphor-svelte/lib/Plus';
 	import { createTodo, listTodoIds } from '../../todos.remote';
 	import { createTodoSchema } from '../schema';
 
@@ -20,10 +22,26 @@
 		<Input
 			class="flex-1"
 			{...createTodo.fields.title.as('text')}
-			placeholder="Add todo"
+			placeholder="New task"
 			aria-describedby={todoSaveErrorsId}
 		/>
-		<Button type="submit" disabled={createTodo.pending > 0}>Add</Button>
+		<Tooltip.Root>
+			<Tooltip.Trigger>
+				{#snippet child({ props })}
+					<Button
+						{...props}
+						class="shrink-0"
+						type="submit"
+						size="icon-lg"
+						disabled={createTodo.pending > 0}
+						aria-label="Add todo"
+					>
+						<PlusIcon />
+					</Button>
+				{/snippet}
+			</Tooltip.Trigger>
+			<Tooltip.Content>Add</Tooltip.Content>
+		</Tooltip.Root>
 	</div>
 
 	<div id={todoSaveErrorsId} class="space-y-1">
