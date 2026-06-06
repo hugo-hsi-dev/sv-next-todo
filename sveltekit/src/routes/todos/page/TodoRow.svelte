@@ -65,7 +65,8 @@
 				<div class="min-w-0 flex-1">
 					<Input
 						class="h-9 px-2"
-						{...editTodo.for(id).fields.title.as('text', todo.title)}
+						{...editTodo.for(id).fields.title.as('text')}
+						placeholder={todo.title}
 						autofocus
 						disabled={editTodo.for(id).pending > 0}
 						aria-label="Todo title"

@@ -171,7 +171,7 @@ function EditForm({
   onSave: (title: string) => void;
 }) {
   const form = useForm({
-    defaultValues: { title: todo.title },
+    defaultValues: { title: "" },
     validators: {
       onSubmit: ({ value }) => ({ fields: { title: getTodoTitleError(value.title) } }),
     },
@@ -197,6 +197,7 @@ function EditForm({
               className="h-9 px-2"
               maxLength={120}
               name={field.name}
+              placeholder={todo.title}
               value={field.state.value}
               onBlur={field.handleBlur}
               onChange={(event) => field.handleChange(event.target.value)}
