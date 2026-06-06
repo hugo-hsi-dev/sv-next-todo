@@ -3,7 +3,12 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 
 import * as schema from './schema';
 
-const url = process.env.DATABASE_URL ?? 'local.db';
+const url = process.env.DATABASE_URL;
+
+if (!url) {
+	throw new Error('DATABASE_URL is required');
+}
+
 const sqlite = new Database(url);
 
 sqlite.exec(`
