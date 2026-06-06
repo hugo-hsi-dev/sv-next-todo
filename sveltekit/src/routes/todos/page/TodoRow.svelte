@@ -2,6 +2,10 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import { Input } from '$lib/components/ui/input';
+	import CheckIcon from 'phosphor-svelte/lib/Check';
+	import PencilIcon from 'phosphor-svelte/lib/Pencil';
+	import TrashIcon from 'phosphor-svelte/lib/Trash';
+	import XIcon from 'phosphor-svelte/lib/X';
 	import {
 		deleteTodo,
 		editTodo,
@@ -14,84 +18,133 @@
 	import { toast } from 'svelte-sonner';
 
 	let { id }: { id: number } = $props();
+	let isEditing = $state(false);
 	const titleErrorId = $props.id();
 </script>
 
 {#if await getTodoDetails(id)}
-	<form
-		class="flex items-start gap-2 px-3 py-2"
-		{...editTodo
-			.for(id)
-			.preflight(editTodoSchema)
-			.enhance(async (form) => {
-				const title = form.fields.title.value()!;
-
-				await form
-					.submit()
-					.updates(
-						getTodoDetails(id).withOverride((todo) => ({ ...todo, title, updatedAt: new Date() }))
-					);
-			})}
-		oninput={() => editTodo.for(id).validate()}
-	>
-		<input {...editTodo.for(id).fields.id.as('hidden', id)} />
+	{@const todo = await getTodoDetails(id)}
+	<div class="flex items-start gap-2 px-3 py-2">
 		<Checkbox
 			class="mt-2"
-			checked={(await getTodoDetails(id)).completed}
+			checked={todo.completed}
 			disabled={toggleTodo.pending > 0}
 			onCheckedChange={(completed) =>
 				void toggleTodo({ id, completed }).updates(
 					getTodoDetails(id).withOverride((todo) => ({ ...todo, completed }))
 				)}
-			aria-label="Toggle todo"
+			aria-label={todo.completed ? 'Mark incomplete' : 'Mark complete'}
+			title={todo.completed ? 'Mark incomplete' : 'Mark complete'}
 		/>
 
-		<div class="min-w-0 flex-1">
-			<Input
-				class={`h-8 border-transparent px-2 hover:border-zinc-200 ${(await getTodoDetails(id)).completed ? 'line-through' : ''}`}
-				{...editTodo.for(id).fields.title.as('text', (await getTodoDetails(id)).title)}
-				disabled={editTodo.for(id).pending > 0}
-				aria-label="Todo title"
-				aria-describedby={titleErrorId}
-			/>
+		{#if isEditing}
+			<form
+				class="flex min-w-0 flex-1 items-start gap-2"
+				{...editTodo
+					.for(id)
+					.preflight(editTodoSchema)
+					.enhance(async (form) => {
+						const title = form.fields.title.value()!;
 
-			<div id={titleErrorId} class="space-y-1 pt-1">
-				{#each editTodo.for(id).fields.title.issues() as issue (issue.message)}
-					<p class="text-sm text-red-600">{issue.message}</p>
-				{/each}
-			</div>
-		</div>
+						const result = await form
+							.submit()
+							.updates(
+								getTodoDetails(id).withOverride((todo) => ({
+									...todo,
+									title,
+									updatedAt: new Date()
+								}))
+							);
 
-		<Button
-			class="shrink-0"
-			variant="ghost"
-			size="sm"
-			type="submit"
-			disabled={editTodo.for(id).pending > 0}
-		>
-			Save
-		</Button>
+						if (result) {
+							isEditing = false;
+						}
+					})}
+				oninput={() => editTodo.for(id).validate()}
+			>
+				<input {...editTodo.for(id).fields.id.as('hidden', id)} />
+				<div class="min-w-0 flex-1">
+					<Input
+						class="h-8 px-2"
+						{...editTodo.for(id).fields.title.as('text', todo.title)}
+						disabled={editTodo.for(id).pending > 0}
+						aria-label="Todo title"
+						aria-describedby={titleErrorId}
+					/>
 
-		<Button
-			class="shrink-0"
-			variant="ghost"
-			size="sm"
-			type="button"
-			disabled={deleteTodo.pending > 0}
-			onclick={async () => {
-				toast(`Deleted ${(await getTodoDetails(id)).title}`, {
-					action: {
-						label: 'Undo',
-						onClick: () => void restoreTodo(id).updates(listTodoIds(), getTodoDetails(id))
-					}
-				});
+					<div id={titleErrorId} class="space-y-1 pt-1">
+						{#each editTodo.for(id).fields.title.issues() as issue (issue.message)}
+							<p class="text-sm text-red-600">{issue.message}</p>
+						{/each}
+					</div>
+				</div>
 
-				void deleteTodo(id).updates(
-					listTodoIds().withOverride((ids) => ids.filter((todoId) => todoId !== id))
-				);
-			}}
-		>
-			Delete
-		</Button>
-	</form>
+				<Button
+					class="shrink-0"
+					size="icon"
+					type="submit"
+					disabled={editTodo.for(id).pending > 0}
+					aria-label="Save todo"
+					title="Save"
+				>
+					<CheckIcon />
+				</Button>
+
+				<Button
+					class="shrink-0"
+					variant="outline"
+					size="icon"
+					type="button"
+					aria-label="Cancel edit"
+					title="Cancel"
+					onclick={() => (isEditing = false)}
+				>
+					<XIcon />
+				</Button>
+			</form>
+		{:else}
+			<span
+				class={`min-w-0 flex-1 truncate py-2 text-sm ${
+					todo.completed ? 'text-zinc-400 line-through' : 'text-zinc-900'
+				}`}
+			>
+				{todo.title}
+			</span>
+			<Button
+				class="text-zinc-500"
+				variant="ghost"
+				size="icon"
+				type="button"
+				aria-label="Edit todo"
+				title="Edit"
+				onclick={() => (isEditing = true)}
+			>
+				<PencilIcon />
+			</Button>
+
+			<Button
+				class="shrink-0"
+				variant="destructive"
+				size="icon"
+				type="button"
+				disabled={deleteTodo.pending > 0}
+				aria-label="Delete todo"
+				title="Delete"
+				onclick={async () => {
+					toast(`Deleted ${todo.title}`, {
+						action: {
+							label: 'Undo',
+							onClick: () => void restoreTodo(id).updates(listTodoIds(), getTodoDetails(id))
+						}
+					});
+
+					void deleteTodo(id).updates(
+						listTodoIds().withOverride((ids) => ids.filter((todoId) => todoId !== id))
+					);
+				}}
+			>
+				<TrashIcon />
+			</Button>
+		{/if}
+	</div>
 {/if}

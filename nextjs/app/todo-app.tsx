@@ -1,27 +1,26 @@
 "use client";
 
 import { useForm } from "@tanstack/react-form";
-import { Check, Pencil, Plus, RotateCcw, Trash2, X } from "lucide-react";
+import { Check, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useOptimistic, useRef, useState, useTransition } from "react";
 import type { TodoView } from "./actions";
 import {
   submitCreate,
   submitDelete,
   submitEdit,
-  submitRestore,
   submitToggle,
 } from "./todo-mutations";
 import { applyOptimistic } from "./todo-optimistic";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { getTodoTitleError } from "@/lib/todo-validation";
 
 export function TodoApp({ initialTodos }: { initialTodos: TodoView[] }) {
   const [todos, dispatch] = useOptimistic(initialTodos, applyOptimistic);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [toast, setToast] = useState<TodoView | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const mutationVersions = useRef(new Map<number, number>());
   const beginMutation = (id: number) => {
@@ -33,8 +32,6 @@ export function TodoApp({ initialTodos }: { initialTodos: TodoView[] }) {
   const mutationContext = {
     dispatch,
     setEditingId,
-    setToast,
-    setError,
     startTransition,
     beginMutation,
     isCurrentMutation,
@@ -53,73 +50,70 @@ export function TodoApp({ initialTodos }: { initialTodos: TodoView[] }) {
   return (
     <>
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-sm text-zinc-500">{todos.length} active items</p>
+        <Badge variant="outline">{todos.length} active items</Badge>
         {isPending ? (
-          <span role="status" aria-live="polite" className="text-xs text-zinc-500">
+          <Badge role="status" aria-live="polite" variant="secondary">
             Saving
-          </span>
+          </Badge>
         ) : null}
       </div>
 
-        <form
-          className="mb-3 flex gap-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            createForm.handleSubmit();
-          }}
+      <form
+        className="mb-3 flex gap-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          createForm.handleSubmit();
+        }}
+      >
+        <createForm.Field name="title">
+          {(field) => (
+            <div className="min-w-0 flex-1">
+              <Input
+                aria-describedby={field.state.meta.errors.length ? "create-title-error" : undefined}
+                aria-invalid={field.state.meta.errors.length > 0}
+                maxLength={120}
+                name={field.name}
+                placeholder="New task"
+                value={field.state.value}
+                onBlur={field.handleBlur}
+                onChange={(event) => field.handleChange(event.target.value)}
+              />
+              {field.state.meta.errors.length ? (
+                <p id="create-title-error" className="mt-1 text-xs text-red-600">
+                  {field.state.meta.errors[0]}
+                </p>
+              ) : null}
+            </div>
+          )}
+        </createForm.Field>
+        <Button
+          aria-label="Add todo"
+          size="icon-lg"
+          className="shrink-0"
+          disabled={isPending}
+          title="Add"
+          type="submit"
         >
-          <createForm.Field name="title">
-            {(field) => (
-              <div className="min-w-0 flex-1">
-                <Input
-                  aria-describedby={field.state.meta.errors.length ? "create-title-error" : undefined}
-                  aria-invalid={field.state.meta.errors.length > 0}
-                  maxLength={120}
-                  name={field.name}
-                  placeholder="New task"
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(event) => field.handleChange(event.target.value)}
-                />
-                {field.state.meta.errors.length ? (
-                  <p id="create-title-error" className="mt-1 text-xs text-red-600">
-                    {field.state.meta.errors[0]}
-                  </p>
-                ) : null}
-              </div>
-            )}
-          </createForm.Field>
-          <Button
-            aria-label="Add todo"
-            size="icon-lg"
-            className="shrink-0"
-            disabled={isPending}
-            title="Add"
-            type="submit"
-          >
-            <Plus size={18} />
-          </Button>
-        </form>
+          <Plus size={18} />
+        </Button>
+      </form>
 
-        <Card>
+      <Card className="gap-0 py-0">
+        <CardContent className="px-0">
           {todos.length === 0 ? (
             <div className="px-3 py-8 text-center text-sm text-zinc-500">No tasks</div>
           ) : (
             <ul className="divide-y divide-zinc-100">
               {todos.map((todo) => (
-                <li key={todo.id} className="flex items-center gap-2 px-3 py-2">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="shrink-0 text-zinc-700 hover:border-zinc-900"
-                    onClick={() => submitToggle(todo, mutationContext)}
+                <li key={todo.id} className="flex items-start gap-2 px-3 py-2">
+                  <Checkbox
+                    checked={todo.completed}
+                    className="mt-2"
+                    onCheckedChange={() => submitToggle(todo, mutationContext)}
                     aria-label={todo.completed ? "Mark incomplete" : "Mark complete"}
                     title={todo.completed ? "Mark incomplete" : "Mark complete"}
-                    type="button"
-                  >
-                    {todo.completed ? <Check size={16} /> : null}
-                  </Button>
+                  />
                   {editingId === todo.id ? (
                     <EditForm
                       todo={todo}
@@ -129,7 +123,7 @@ export function TodoApp({ initialTodos }: { initialTodos: TodoView[] }) {
                   ) : (
                     <>
                       <span
-                        className={`min-w-0 flex-1 truncate text-sm ${
+                        className={`min-w-0 flex-1 truncate py-2 text-sm ${
                           todo.completed ? "text-zinc-400 line-through" : "text-zinc-900"
                         }`}
                       >
@@ -162,38 +156,8 @@ export function TodoApp({ initialTodos }: { initialTodos: TodoView[] }) {
               ))}
             </ul>
           )}
-        </Card>
-      {error ? (
-        <div
-          role="alert"
-          className="fixed bottom-4 left-1/2 flex w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 items-center gap-3 rounded-md border border-red-200 bg-white px-3 py-2 text-sm text-red-700 shadow-lg"
-        >
-          <span className="min-w-0 flex-1">{error}</span>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-red-900"
-            onClick={() => setError(null)}
-            type="button"
-          >
-            Dismiss
-          </Button>
-        </div>
-      ) : null}
-
-      {toast ? (
-        <div
-          role="status"
-          aria-live="polite"
-          className="fixed bottom-4 left-1/2 flex w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 items-center gap-3 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm shadow-lg"
-        >
-          <span className="min-w-0 flex-1 truncate">Deleted {toast.title}</span>
-          <Button size="sm" className="text-xs" onClick={() => submitRestore(toast, mutationContext)} type="button">
-            <RotateCcw size={14} />
-            Undo
-          </Button>
-        </div>
-      ) : null}
+        </CardContent>
+      </Card>
     </>
   );
 }
