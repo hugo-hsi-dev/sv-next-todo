@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getTodoTitleError } from "@/lib/todo-validation";
 
 export function TodoApp({ initialTodos }: { initialTodos: TodoView[] }) {
@@ -87,16 +88,22 @@ export function TodoApp({ initialTodos }: { initialTodos: TodoView[] }) {
             </div>
           )}
         </createForm.Field>
-        <Button
-          aria-label="Add todo"
-          size="icon-lg"
-          className="shrink-0"
-          disabled={isPending}
-          title="Add"
-          type="submit"
-        >
-          <Plus size={18} />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                aria-label="Add todo"
+                size="icon-lg"
+                className="shrink-0"
+                disabled={isPending}
+                type="submit"
+              >
+                <Plus size={18} />
+              </Button>
+            }
+          />
+          <TooltipContent>Add</TooltipContent>
+        </Tooltip>
       </form>
 
       <Card className="gap-0 py-0">
@@ -107,12 +114,18 @@ export function TodoApp({ initialTodos }: { initialTodos: TodoView[] }) {
             <ul className="divide-y divide-zinc-100">
               {todos.map((todo) => (
                 <li key={todo.id} className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2 px-3 py-2">
-                  <Checkbox
-                    checked={todo.completed}
-                    onCheckedChange={() => submitToggle(todo, mutationContext)}
-                    aria-label={todo.completed ? "Mark incomplete" : "Mark complete"}
-                    title={todo.completed ? "Mark incomplete" : "Mark complete"}
-                  />
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Checkbox
+                          checked={todo.completed}
+                          onCheckedChange={() => submitToggle(todo, mutationContext)}
+                          aria-label={todo.completed ? "Mark incomplete" : "Mark complete"}
+                        />
+                      }
+                    />
+                    <TooltipContent>{todo.completed ? "Mark incomplete" : "Mark complete"}</TooltipContent>
+                  </Tooltip>
                   {editingId === todo.id ? (
                     <EditForm
                       todo={todo}
@@ -128,27 +141,39 @@ export function TodoApp({ initialTodos }: { initialTodos: TodoView[] }) {
                       >
                         {todo.title}
                       </span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-zinc-500"
-                        onClick={() => setEditingId(todo.id)}
-                        aria-label="Edit todo"
-                        title="Edit"
-                        type="button"
-                      >
-                        <Pencil size={15} />
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        onClick={() => submitDelete(todo, mutationContext)}
-                        aria-label="Delete todo"
-                        title="Delete"
-                        type="button"
-                      >
-                        <Trash2 size={15} />
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-zinc-500"
+                              onClick={() => setEditingId(todo.id)}
+                              aria-label="Edit todo"
+                              type="button"
+                            >
+                              <Pencil size={15} />
+                            </Button>
+                          }
+                        />
+                        <TooltipContent>Edit</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <Button
+                              variant="destructive"
+                              size="icon"
+                              onClick={() => submitDelete(todo, mutationContext)}
+                              aria-label="Delete todo"
+                              type="button"
+                            >
+                              <Trash2 size={15} />
+                            </Button>
+                          }
+                        />
+                        <TooltipContent>Delete</TooltipContent>
+                      </Tooltip>
                     </>
                   )}
                 </li>
@@ -191,7 +216,6 @@ function EditForm({
         {(field) => (
           <div className="min-w-0 flex-1">
             <Input
-              aria-describedby={field.state.meta.errors.length ? `edit-title-error-${todo.id}` : undefined}
               aria-invalid={field.state.meta.errors.length > 0}
               autoFocus
               className="h-9 px-2"
@@ -202,28 +226,36 @@ function EditForm({
               onBlur={field.handleBlur}
               onChange={(event) => field.handleChange(event.target.value)}
             />
-            {field.state.meta.errors.length ? (
-              <p id={`edit-title-error-${todo.id}`} className="mt-1 text-xs text-red-600">
-                {field.state.meta.errors[0]}
-              </p>
-            ) : null}
           </div>
         )}
       </form.Field>
-      <Button aria-label="Save todo" size="icon" className="shrink-0" title="Save" type="submit">
-        <Check size={15} />
-      </Button>
-      <Button
-        aria-label="Cancel edit"
-        variant="outline"
-        size="icon"
-        className="shrink-0"
-        onClick={onCancel}
-        title="Cancel"
-        type="button"
-      >
-        <X size={15} />
-      </Button>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button aria-label="Save todo" size="icon" className="shrink-0" type="submit">
+              <Check size={15} />
+            </Button>
+          }
+        />
+        <TooltipContent>Save</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              aria-label="Cancel edit"
+              variant="outline"
+              size="icon"
+              className="shrink-0"
+              onClick={onCancel}
+              type="button"
+            >
+              <X size={15} />
+            </Button>
+          }
+        />
+        <TooltipContent>Cancel</TooltipContent>
+      </Tooltip>
     </form>
   );
 }
