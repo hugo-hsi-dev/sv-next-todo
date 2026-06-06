@@ -1,4 +1,8 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+This is a local single-user todo demo built with [Next.js](https://nextjs.org).
+
+## Production Notes
+
+This app intentionally has no auth or per-user data scope. Production use needs auth, a `userId` on todos, scoped server actions, and a deployment-suitable database instead of local SQLite.
 
 ## Getting Started
 

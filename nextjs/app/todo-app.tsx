@@ -2,7 +2,7 @@
 
 import { useForm } from "@tanstack/react-form";
 import { Check, Pencil, Plus, RotateCcw, Trash2, X } from "lucide-react";
-import { useOptimistic, useState, useTransition } from "react";
+import { useOptimistic, useRef, useState, useTransition } from "react";
 import type { TodoView } from "./actions";
 import {
   submitCreate,
@@ -23,7 +23,22 @@ export function TodoApp({ initialTodos }: { initialTodos: TodoView[] }) {
   const [toast, setToast] = useState<TodoView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const mutationContext = { dispatch, setEditingId, setToast, setError, startTransition };
+  const mutationVersions = useRef(new Map<number, number>());
+  const beginMutation = (id: number) => {
+    const version = (mutationVersions.current.get(id) ?? 0) + 1;
+    mutationVersions.current.set(id, version);
+    return version;
+  };
+  const isCurrentMutation = (id: number, version: number) => mutationVersions.current.get(id) === version;
+  const mutationContext = {
+    dispatch,
+    setEditingId,
+    setToast,
+    setError,
+    startTransition,
+    beginMutation,
+    isCurrentMutation,
+  };
 
   const createForm = useForm({
     defaultValues: { title: "" },
@@ -36,15 +51,15 @@ export function TodoApp({ initialTodos }: { initialTodos: TodoView[] }) {
   });
 
   return (
-    <main className="min-h-screen bg-stone-100 text-zinc-950">
-      <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-4 py-5 sm:px-6">
-        <header className="mb-4 flex items-center justify-between border-b border-zinc-200 pb-3">
-          <div>
-            <h1 className="text-xl font-semibold">Todo</h1>
-            <p className="text-sm text-zinc-500">{todos.length} active items</p>
-          </div>
-          {isPending ? <span className="text-xs text-zinc-500">Saving</span> : null}
-        </header>
+    <>
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-sm text-zinc-500">{todos.length} active items</p>
+        {isPending ? (
+          <span role="status" aria-live="polite" className="text-xs text-zinc-500">
+            Saving
+          </span>
+        ) : null}
+      </div>
 
         <form
           className="mb-3 flex gap-2"
@@ -58,6 +73,8 @@ export function TodoApp({ initialTodos }: { initialTodos: TodoView[] }) {
             {(field) => (
               <div className="min-w-0 flex-1">
                 <Input
+                  aria-describedby={field.state.meta.errors.length ? "create-title-error" : undefined}
+                  aria-invalid={field.state.meta.errors.length > 0}
                   maxLength={120}
                   name={field.name}
                   placeholder="New task"
@@ -66,12 +83,21 @@ export function TodoApp({ initialTodos }: { initialTodos: TodoView[] }) {
                   onChange={(event) => field.handleChange(event.target.value)}
                 />
                 {field.state.meta.errors.length ? (
-                  <p className="mt-1 text-xs text-red-600">{field.state.meta.errors[0]}</p>
+                  <p id="create-title-error" className="mt-1 text-xs text-red-600">
+                    {field.state.meta.errors[0]}
+                  </p>
                 ) : null}
               </div>
             )}
           </createForm.Field>
-          <Button size="icon-lg" className="shrink-0" disabled={isPending} title="Add" type="submit">
+          <Button
+            aria-label="Add todo"
+            size="icon-lg"
+            className="shrink-0"
+            disabled={isPending}
+            title="Add"
+            type="submit"
+          >
             <Plus size={18} />
           </Button>
         </form>
@@ -88,6 +114,7 @@ export function TodoApp({ initialTodos }: { initialTodos: TodoView[] }) {
                     size="icon"
                     className="shrink-0 text-zinc-700 hover:border-zinc-900"
                     onClick={() => submitToggle(todo, mutationContext)}
+                    aria-label={todo.completed ? "Mark incomplete" : "Mark complete"}
                     title={todo.completed ? "Mark incomplete" : "Mark complete"}
                     type="button"
                   >
@@ -113,6 +140,7 @@ export function TodoApp({ initialTodos }: { initialTodos: TodoView[] }) {
                         size="icon"
                         className="text-zinc-500"
                         onClick={() => setEditingId(todo.id)}
+                        aria-label="Edit todo"
                         title="Edit"
                         type="button"
                       >
@@ -122,6 +150,7 @@ export function TodoApp({ initialTodos }: { initialTodos: TodoView[] }) {
                         variant="destructive"
                         size="icon"
                         onClick={() => submitDelete(todo, mutationContext)}
+                        aria-label="Delete todo"
                         title="Delete"
                         type="button"
                       >
@@ -134,19 +163,30 @@ export function TodoApp({ initialTodos }: { initialTodos: TodoView[] }) {
             </ul>
           )}
         </Card>
-      </div>
-
       {error ? (
-        <div className="fixed bottom-4 left-1/2 flex w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 items-center gap-3 rounded-md border border-red-200 bg-white px-3 py-2 text-sm text-red-700 shadow-lg">
+        <div
+          role="alert"
+          className="fixed bottom-4 left-1/2 flex w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 items-center gap-3 rounded-md border border-red-200 bg-white px-3 py-2 text-sm text-red-700 shadow-lg"
+        >
           <span className="min-w-0 flex-1">{error}</span>
-          <Button variant="ghost" size="sm" className="text-red-900" onClick={() => setError(null)} type="button">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-red-900"
+            onClick={() => setError(null)}
+            type="button"
+          >
             Dismiss
           </Button>
         </div>
       ) : null}
 
       {toast ? (
-        <div className="fixed bottom-4 left-1/2 flex w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 items-center gap-3 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm shadow-lg">
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-4 left-1/2 flex w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 items-center gap-3 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm shadow-lg"
+        >
           <span className="min-w-0 flex-1 truncate">Deleted {toast.title}</span>
           <Button size="sm" className="text-xs" onClick={() => submitRestore(toast, mutationContext)} type="button">
             <RotateCcw size={14} />
@@ -154,7 +194,7 @@ export function TodoApp({ initialTodos }: { initialTodos: TodoView[] }) {
           </Button>
         </div>
       ) : null}
-    </main>
+    </>
   );
 }
 
@@ -188,6 +228,8 @@ function EditForm({
         {(field) => (
           <div className="min-w-0 flex-1">
             <Input
+              aria-describedby={field.state.meta.errors.length ? `edit-title-error-${todo.id}` : undefined}
+              aria-invalid={field.state.meta.errors.length > 0}
               autoFocus
               className="h-8 px-2"
               maxLength={120}
@@ -197,15 +239,25 @@ function EditForm({
               onChange={(event) => field.handleChange(event.target.value)}
             />
             {field.state.meta.errors.length ? (
-              <p className="mt-1 text-xs text-red-600">{field.state.meta.errors[0]}</p>
+              <p id={`edit-title-error-${todo.id}`} className="mt-1 text-xs text-red-600">
+                {field.state.meta.errors[0]}
+              </p>
             ) : null}
           </div>
         )}
       </form.Field>
-      <Button size="icon" className="shrink-0" title="Save" type="submit">
+      <Button aria-label="Save todo" size="icon" className="shrink-0" title="Save" type="submit">
         <Check size={15} />
       </Button>
-      <Button variant="outline" size="icon" className="shrink-0" onClick={onCancel} title="Cancel" type="button">
+      <Button
+        aria-label="Cancel edit"
+        variant="outline"
+        size="icon"
+        className="shrink-0"
+        onClick={onCancel}
+        title="Cancel"
+        type="button"
+      >
         <X size={15} />
       </Button>
     </form>

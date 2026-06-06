@@ -1,4 +1,10 @@
-# sv
+# SvelteKit Todo Demo
+
+This is a local single-user todo demo built with SvelteKit.
+
+## Production Notes
+
+This app intentionally has no auth or per-user data scope. Production use needs auth, a `userId` on todos, scoped remote functions, and a deployment-suitable database instead of local SQLite.
 
 Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
 
