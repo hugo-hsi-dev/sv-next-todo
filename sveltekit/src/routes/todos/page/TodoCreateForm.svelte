@@ -4,7 +4,7 @@
 	import { createTodo, listTodoIds } from '../../todos.remote';
 	import { createTodoSchema } from '../schema';
 
-	const todoSaveErrorsId = 'todo-save-errors';
+	const todoSaveErrorsId = $props.id();
 </script>
 
 <form
