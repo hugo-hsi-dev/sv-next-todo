@@ -18,6 +18,8 @@ type MutationContext = {
   setToast: Dispatch<SetStateAction<TodoView | null>>;
   setError: Dispatch<SetStateAction<string | null>>;
   startTransition: TransitionStartFunction;
+  beginMutation: (id: number) => number;
+  isCurrentMutation: (id: number, version: number) => boolean;
 };
 
 export function createOptimisticTodo(title: string): TodoView {
@@ -35,10 +37,12 @@ export function createOptimisticTodo(title: string): TodoView {
 export function submitCreate(
   titleValue: string,
   resetForm: () => void,
-  { dispatch, setError, startTransition }: MutationContext,
+  context: MutationContext,
 ) {
+  const { dispatch, setError, startTransition } = context;
   const title = parseTodoTitle(titleValue);
   const tempTodo = createOptimisticTodo(title);
+  const version = context.beginMutation(tempTodo.id);
 
   startTransition(async () => {
     try {
@@ -46,9 +50,13 @@ export function submitCreate(
       dispatch({ type: "create", todo: tempTodo });
       resetForm();
       const saved = await createTodo({ title });
-      dispatch({ type: "replaceId", fromId: tempTodo.id, todo: saved });
+      if (context.isCurrentMutation(tempTodo.id, version)) {
+        dispatch({ type: "replaceId", fromId: tempTodo.id, todo: saved });
+      }
     } catch {
-      dispatch({ type: "remove", id: tempTodo.id });
+      if (context.isCurrentMutation(tempTodo.id, version)) {
+        dispatch({ type: "remove", id: tempTodo.id });
+      }
       setError("Could not create todo.");
     }
   });
@@ -57,6 +65,7 @@ export function submitCreate(
 export function submitEdit(todo: TodoView, titleValue: string, context: MutationContext) {
   const { dispatch, setEditingId, setError, startTransition } = context;
   const title = parseTodoTitle(titleValue);
+  const version = context.beginMutation(todo.id);
 
   startTransition(async () => {
     try {
@@ -64,15 +73,22 @@ export function submitEdit(todo: TodoView, titleValue: string, context: Mutation
       dispatch({ type: "replace", todo: { ...todo, title, updatedAt: Date.now() } });
       setEditingId(null);
       const saved = await updateTodo(todo.id, { title });
-      dispatch({ type: "replace", todo: saved });
+      if (context.isCurrentMutation(todo.id, version)) {
+        dispatch({ type: "replace", todo: saved });
+      }
     } catch {
-      dispatch({ type: "replace", todo });
+      if (context.isCurrentMutation(todo.id, version)) {
+        dispatch({ type: "replace", todo });
+      }
       setError("Could not update todo.");
     }
   });
 }
 
-export function submitToggle(todo: TodoView, { dispatch, setError, startTransition }: MutationContext) {
+export function submitToggle(todo: TodoView, context: MutationContext) {
+  const { dispatch, setError, startTransition } = context;
+  const version = context.beginMutation(todo.id);
+
   startTransition(async () => {
     try {
       setError(null);
@@ -81,9 +97,13 @@ export function submitToggle(todo: TodoView, { dispatch, setError, startTransiti
         todo: { ...todo, completed: !todo.completed, updatedAt: Date.now() },
       });
       const saved = await toggleTodo(todo.id, !todo.completed);
-      dispatch({ type: "replace", todo: saved });
+      if (context.isCurrentMutation(todo.id, version)) {
+        dispatch({ type: "replace", todo: saved });
+      }
     } catch {
-      dispatch({ type: "replace", todo });
+      if (context.isCurrentMutation(todo.id, version)) {
+        dispatch({ type: "replace", todo });
+      }
       setError("Could not toggle todo.");
     }
   });
@@ -91,6 +111,7 @@ export function submitToggle(todo: TodoView, { dispatch, setError, startTransiti
 
 export function submitDelete(todo: TodoView, context: MutationContext) {
   const { dispatch, setError, setToast, startTransition } = context;
+  const version = context.beginMutation(todo.id);
 
   startTransition(async () => {
     try {
@@ -99,8 +120,10 @@ export function submitDelete(todo: TodoView, context: MutationContext) {
       setToast(todo);
       await deleteTodo(todo.id);
     } catch {
-      dispatch({ type: "restore", todo });
-      setToast(null);
+      if (context.isCurrentMutation(todo.id, version)) {
+        dispatch({ type: "restore", todo });
+        setToast(null);
+      }
       setError("Could not delete todo.");
     }
   });
@@ -108,6 +131,7 @@ export function submitDelete(todo: TodoView, context: MutationContext) {
 
 export function submitRestore(todo: TodoView, context: MutationContext) {
   const { dispatch, setError, setToast, startTransition } = context;
+  const version = context.beginMutation(todo.id);
 
   startTransition(async () => {
     try {
@@ -115,9 +139,13 @@ export function submitRestore(todo: TodoView, context: MutationContext) {
       dispatch({ type: "restore", todo });
       setToast(null);
       const saved = await restoreTodo(todo.id);
-      dispatch({ type: "replace", todo: saved });
+      if (context.isCurrentMutation(todo.id, version)) {
+        dispatch({ type: "replace", todo: saved });
+      }
     } catch {
-      dispatch({ type: "remove", id: todo.id });
+      if (context.isCurrentMutation(todo.id, version)) {
+        dispatch({ type: "remove", id: todo.id });
+      }
       setError("Could not restore todo.");
     }
   });

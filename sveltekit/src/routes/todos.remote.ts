@@ -1,5 +1,6 @@
 import { command, form, query } from '$app/server';
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
+import { z } from 'zod';
 
 import { db } from '$lib/server/db';
 import { todos, type Todo } from '$lib/server/db/schema';
@@ -17,12 +18,18 @@ type TodoFormInput = {
 };
 
 const now = () => new Date();
+const idSchema = z.coerce.number().int().positive();
+const saveTodoSchema = z.object({
+	id: z.union([z.string(), z.number()]).optional(),
+	title: z.string()
+});
+const toggleTodoSchema = z.object({ id: idSchema, completed: z.boolean() });
 
 async function refreshRequestedTodoQueries() {
-	await listTodoIds().refresh();
+	await listTodos().refresh();
 }
 
-export const listTodoIds = query(async () => {
+export const listTodos = query(async () => {
 	return db
 		.select()
 		.from(todos)
@@ -30,7 +37,7 @@ export const listTodoIds = query(async () => {
 		.orderBy(desc(todos.createdAt), desc(todos.id));
 });
 
-export const saveTodo = form('unchecked', async (data: TodoFormInput, issue) => {
+export const saveTodo = form(saveTodoSchema, async (data: TodoFormInput, issue) => {
 	const error = getTodoTitleError(data.title);
 
 	if (error) {
@@ -39,13 +46,24 @@ export const saveTodo = form('unchecked', async (data: TodoFormInput, issue) => 
 
 	const title = parseTodoTitle(data.title);
 	const updatedAt = now();
-	const id = data.id ? Number(data.id) : undefined;
+	const parsedId = data.id ? idSchema.safeParse(data.id) : undefined;
+
+	if (parsedId && !parsedId.success) {
+		throw issue.title('Todo not found.');
+	}
+
+	const id = parsedId?.data;
 
 	if (id) {
-		await db
+		const [updatedTodo] = await db
 			.update(todos)
 			.set({ title, updatedAt })
-			.where(and(eq(todos.id, id), isNull(todos.deletedAt)));
+			.where(and(eq(todos.id, id), isNull(todos.deletedAt)))
+			.returning({ id: todos.id });
+
+		if (!updatedTodo) {
+			throw issue.title('Todo not found.');
+		}
 	} else {
 		await db.insert(todos).values({ title, createdAt: updatedAt, updatedAt });
 	}
@@ -53,32 +71,45 @@ export const saveTodo = form('unchecked', async (data: TodoFormInput, issue) => 
 	await refreshRequestedTodoQueries();
 });
 
-export const toggleTodo = command(
-	'unchecked',
-	async ({ id, completed }: { id: number; completed: boolean }) => {
-		await db
-			.update(todos)
-			.set({ completed, updatedAt: now() })
-			.where(and(eq(todos.id, id), isNull(todos.deletedAt)));
-
-		await refreshRequestedTodoQueries();
-	}
-);
-
-export const deleteTodo = command('unchecked', async (id: number) => {
-	await db
+export const toggleTodo = command(toggleTodoSchema, async ({ id, completed }) => {
+	const [updatedTodo] = await db
 		.update(todos)
-		.set({ deletedAt: now(), updatedAt: now() })
-		.where(and(eq(todos.id, id), isNull(todos.deletedAt)));
+		.set({ completed, updatedAt: now() })
+		.where(and(eq(todos.id, id), isNull(todos.deletedAt)))
+		.returning({ id: todos.id });
+
+	if (!updatedTodo) {
+		throw new Error('Todo not found.');
+	}
 
 	await refreshRequestedTodoQueries();
 });
 
-export const restoreTodo = command('unchecked', async (id: number) => {
-	await db
+export const deleteTodo = command(idSchema, async (id) => {
+	const updatedAt = now();
+	const [updatedTodo] = await db
+		.update(todos)
+		.set({ deletedAt: updatedAt, updatedAt })
+		.where(and(eq(todos.id, id), isNull(todos.deletedAt)))
+		.returning({ id: todos.id });
+
+	if (!updatedTodo) {
+		throw new Error('Todo not found.');
+	}
+
+	await refreshRequestedTodoQueries();
+});
+
+export const restoreTodo = command(idSchema, async (id) => {
+	const [updatedTodo] = await db
 		.update(todos)
 		.set({ deletedAt: null, updatedAt: now(), createdAt: sql`${todos.createdAt}` })
-		.where(eq(todos.id, id));
+		.where(and(eq(todos.id, id), isNotNull(todos.deletedAt)))
+		.returning({ id: todos.id });
+
+	if (!updatedTodo) {
+		throw new Error('Todo not found.');
+	}
 
 	await refreshRequestedTodoQueries();
 });

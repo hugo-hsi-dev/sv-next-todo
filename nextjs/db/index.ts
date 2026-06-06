@@ -14,15 +14,5 @@ mkdirSync(dirname(dbPath), { recursive: true });
 
 const sqlite = new Database(dbPath);
 sqlite.pragma("journal_mode = WAL");
-sqlite.exec(`
-  CREATE TABLE IF NOT EXISTS todos (
-    id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-    title text NOT NULL,
-    completed integer DEFAULT false NOT NULL,
-    created_at integer NOT NULL,
-    updated_at integer NOT NULL,
-    deleted_at integer
-  );
-`);
 
 export const db = drizzle(sqlite, { schema });
