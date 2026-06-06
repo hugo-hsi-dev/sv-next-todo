@@ -24,9 +24,8 @@
 
 {#if await getTodoDetails(id)}
 	{@const todo = await getTodoDetails(id)}
-	<div class="flex items-start gap-2 px-3 py-2">
+	<div class="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2 px-3 py-2">
 		<Checkbox
-			class="mt-2"
 			checked={todo.completed}
 			disabled={toggleTodo.pending > 0}
 			onCheckedChange={(completed) =>
@@ -39,7 +38,7 @@
 
 		{#if isEditing}
 			<form
-				class="flex min-w-0 flex-1 items-start gap-2"
+				class="contents"
 				{...editTodo
 					.for(id)
 					.preflight(editTodoSchema)
@@ -65,18 +64,20 @@
 				<input {...editTodo.for(id).fields.id.as('hidden', id)} />
 				<div class="min-w-0 flex-1">
 					<Input
-						class="h-8 px-2"
+						class="h-9 px-2"
 						{...editTodo.for(id).fields.title.as('text', todo.title)}
 						disabled={editTodo.for(id).pending > 0}
 						aria-label="Todo title"
 						aria-describedby={titleErrorId}
 					/>
 
-					<div id={titleErrorId} class="space-y-1 pt-1">
-						{#each editTodo.for(id).fields.title.issues() as issue (issue.message)}
-							<p class="text-sm text-red-600">{issue.message}</p>
-						{/each}
-					</div>
+					{#if editTodo.for(id).fields.title.issues()?.length}
+						<div id={titleErrorId} class="space-y-1 pt-1">
+							{#each editTodo.for(id).fields.title.issues() ?? [] as issue (issue.message)}
+								<p class="text-sm text-red-600">{issue.message}</p>
+							{/each}
+						</div>
+					{/if}
 				</div>
 
 				<Button
@@ -104,7 +105,7 @@
 			</form>
 		{:else}
 			<span
-				class={`min-w-0 flex-1 truncate py-2 text-sm ${
+				class={`flex h-9 min-w-0 items-center truncate text-sm ${
 					todo.completed ? 'text-zinc-400 line-through' : 'text-zinc-900'
 				}`}
 			>

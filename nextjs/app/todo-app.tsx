@@ -106,10 +106,9 @@ export function TodoApp({ initialTodos }: { initialTodos: TodoView[] }) {
           ) : (
             <ul className="divide-y divide-zinc-100">
               {todos.map((todo) => (
-                <li key={todo.id} className="flex items-start gap-2 px-3 py-2">
+                <li key={todo.id} className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2 px-3 py-2">
                   <Checkbox
                     checked={todo.completed}
-                    className="mt-2"
                     onCheckedChange={() => submitToggle(todo, mutationContext)}
                     aria-label={todo.completed ? "Mark incomplete" : "Mark complete"}
                     title={todo.completed ? "Mark incomplete" : "Mark complete"}
@@ -123,7 +122,7 @@ export function TodoApp({ initialTodos }: { initialTodos: TodoView[] }) {
                   ) : (
                     <>
                       <span
-                        className={`min-w-0 flex-1 truncate py-2 text-sm ${
+                        className={`flex h-9 min-w-0 items-center truncate text-sm ${
                           todo.completed ? "text-zinc-400 line-through" : "text-zinc-900"
                         }`}
                       >
@@ -181,7 +180,7 @@ function EditForm({
 
   return (
     <form
-      className="flex min-w-0 flex-1 items-start gap-2"
+      className="contents"
       onSubmit={(event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -195,7 +194,7 @@ function EditForm({
               aria-describedby={field.state.meta.errors.length ? `edit-title-error-${todo.id}` : undefined}
               aria-invalid={field.state.meta.errors.length > 0}
               autoFocus
-              className="h-8 px-2"
+              className="h-9 px-2"
               maxLength={120}
               name={field.name}
               value={field.state.value}
