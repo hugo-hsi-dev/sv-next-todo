@@ -6,29 +6,14 @@ name = "sv-next-todo"
 script = '''
 cd "$CODEX_WORKTREE_PATH"
 
-test -f "$CODEX_SOURCE_TREE_PATH/nextjs/.env.local"
+test -f "$CODEX_SOURCE_TREE_PATH/nextjs/.env"
 test -f "$CODEX_SOURCE_TREE_PATH/sveltekit/.env"
 
-cp -f "$CODEX_SOURCE_TREE_PATH/nextjs/.env.local" "$CODEX_WORKTREE_PATH/nextjs/.env.local"
+cp -f "$CODEX_SOURCE_TREE_PATH/nextjs/.env" "$CODEX_WORKTREE_PATH/nextjs/.env"
 cp -f "$CODEX_SOURCE_TREE_PATH/sveltekit/.env" "$CODEX_WORKTREE_PATH/sveltekit/.env"
 
 pnpm install --no-frozen-lockfile
-
-(
-  cd "$CODEX_WORKTREE_PATH/nextjs"
-  set -a
-  . ./.env.local
-  set +a
-  pnpm db:push
-)
-
-(
-  cd "$CODEX_WORKTREE_PATH/sveltekit"
-  set -a
-  . ./.env
-  set +a
-  pnpm db:push
-)
+pnpm db:push
 '''
 
 [[actions]]
