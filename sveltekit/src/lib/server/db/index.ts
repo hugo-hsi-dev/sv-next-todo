@@ -1,15 +1,14 @@
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { DATABASE_URL } from '$env/static/private';
 
 import * as schema from './schema';
 
-const url = process.env.DATABASE_URL;
-
-if (!url) {
+if (!DATABASE_URL) {
 	throw new Error('DATABASE_URL is required');
 }
 
-const sqlite = new Database(url);
+const sqlite = new Database(DATABASE_URL);
 
 sqlite.exec(`
 	create table if not exists todos (
