@@ -9,7 +9,6 @@
 	} from './todo-page-helpers';
 	import {
 		deleteTodo,
-		getTodo,
 		listTodoIds,
 		restoreTodo,
 		saveTodo,
@@ -71,7 +70,7 @@
 			})}
 		>
 			<Input class="flex-1" name="title" maxlength={120} required placeholder="Add todo" />
-			<Button disabled={saveTodo.pending > 0}>Add</Button>
+			<Button type="submit" disabled={saveTodo.pending > 0}>Add</Button>
 		</form>
 
 		{#if saveTodo.result}
@@ -93,19 +92,22 @@
 							<span class="px-2 text-xs text-zinc-500">Saving</span>
 						</div>
 					{:else}
-						{@const todo = getTodo(summary.id)}
-						{#if todo.current}
-							{@const editForm = saveTodo.for(todo.current.id)}
+						{@const todo = summary}
+						{@const editForm = saveTodo.for(todo.id)}
 							<div class="grid grid-cols-[auto_1fr_auto_auto] items-center gap-2 px-3 py-2">
-								<Input
+								<input
 									class="size-4"
 									type="checkbox"
-									checked={todo.current.completed}
+									checked={todo.completed}
 									disabled={toggleTodo.pending > 0}
 									onchange={(event: Event & { currentTarget: HTMLInputElement }) => {
 										const completed = event.currentTarget.checked;
-										void toggleTodo({ id: todo.current.id, completed }).updates(
-											todo.withOverride((item) => ({ ...item, completed }))
+										void toggleTodo({ id: todo.id, completed }).updates(
+											todoIds.withOverride((items) =>
+												items.map((item) =>
+													item.id === todo.id ? { ...item, completed } : item
+												)
+											)
 										);
 									}}
 									aria-label="Toggle todo"
@@ -113,21 +115,25 @@
 
 								<form
 									class="min-w-0"
-									id={`todo-${todo.current.id}`}
+									id={`todo-${todo.id}`}
 									{...editForm.enhance(async (form) => {
 										const title = String(form.fields.title.value() ?? '').trim();
 										await form
 											.submit()
 											.updates(
-												todo.withOverride((item) => ({ ...item, title, updatedAt: new Date() }))
+												todoIds.withOverride((items) =>
+													items.map((item) =>
+														item.id === todo.id ? { ...item, title, updatedAt: new Date() } : item
+													)
+												)
 											);
 									})}
 								>
-									<input type="hidden" name="id" value={todo.current.id} />
+									<input type="hidden" name="id" value={todo.id} />
 									<Input
-										class={`h-8 border-transparent px-2 hover:border-zinc-200 ${todo.current.completed ? 'line-through' : ''}`}
+										class={`h-8 border-transparent px-2 hover:border-zinc-200 ${todo.completed ? 'line-through' : ''}`}
 										name="title"
-										value={todo.current.title}
+										value={todo.title}
 										maxlength={120}
 										required
 										disabled={editForm.pending > 0}
@@ -139,7 +145,7 @@
 									variant="ghost"
 									size="sm"
 									type="submit"
-									form={`todo-${todo.current.id}`}
+									form={`todo-${todo.id}`}
 									disabled={editForm.pending > 0}
 								>
 									Save
@@ -150,14 +156,13 @@
 									size="sm"
 									disabled={deleteTodo.pending > 0}
 									onclick={() => {
-										setUndo(todo.current);
-										void deleteTodo(todo.current.id).updates(optimisticIds(todo.current.id));
+										setUndo(todo);
+										void deleteTodo(todo.id).updates(optimisticIds(todo.id));
 									}}
 								>
 									Delete
 								</Button>
 							</div>
-						{/if}
 					{/if}
 				{/each}
 			{:else}

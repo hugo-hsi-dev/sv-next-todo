@@ -20,5 +20,5 @@ export function canOptimisticallyAdd(title: string) {
 
 export function nextOptimisticIds(ids: TodoSummary[], removeId?: number, addTodo?: TodoItem) {
 	const next = removeId ? ids.filter(({ id }) => id !== removeId) : ids;
-	return addTodo ? [{ id: addTodo.id, createdAt: addTodo.createdAt }, ...next] : next;
+	return addTodo ? [addTodo, ...next] : next;
 }
