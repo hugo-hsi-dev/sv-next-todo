@@ -66,6 +66,7 @@
 					<Input
 						class="h-9 px-2"
 						{...editTodo.for(id).fields.title.as('text', todo.title)}
+						autofocus
 						disabled={editTodo.for(id).pending > 0}
 						aria-label="Todo title"
 						aria-describedby={titleErrorId}
