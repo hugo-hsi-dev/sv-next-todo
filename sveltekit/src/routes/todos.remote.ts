@@ -1,15 +1,15 @@
-import { command, form, query, requested } from '$app/server';
-import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { command, form, query } from '$app/server';
+import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 
 import { db } from '$lib/server/db';
 import { todos, type Todo } from '$lib/server/db/schema';
 import { getTodoTitleError, parseTodoTitle } from '$lib/todo-validation';
 
-export type TodoSummary = Pick<Todo, 'id' | 'createdAt'>;
 export type TodoItem = Pick<
 	Todo,
 	'id' | 'title' | 'completed' | 'deletedAt' | 'createdAt' | 'updatedAt'
 >;
+export type TodoSummary = TodoItem;
 
 type TodoFormInput = {
 	id?: string | number;
@@ -19,29 +19,15 @@ type TodoFormInput = {
 const now = () => new Date();
 
 async function refreshRequestedTodoQueries() {
-	await Promise.all([listTodoIds().refresh(), requested(getTodo, 100).refreshAll()]);
+	await listTodoIds().refresh();
 }
 
 export const listTodoIds = query(async () => {
 	return db
-		.select({ id: todos.id, createdAt: todos.createdAt })
+		.select()
 		.from(todos)
 		.where(isNull(todos.deletedAt))
 		.orderBy(desc(todos.createdAt), desc(todos.id));
-});
-
-export const getTodo = query.batch('unchecked', async (ids: number[]) => {
-	const rows = ids.length ? await db.select().from(todos).where(inArray(todos.id, ids)) : [];
-	const byId = new Map(rows.map((todo) => [todo.id, todo]));
-
-	return (id) => {
-		const todo = byId.get(id);
-		if (!todo) {
-			throw new Error('Todo not found');
-		}
-
-		return todo satisfies TodoItem;
-	};
 });
 
 export const saveTodo = form('unchecked', async (data: TodoFormInput, issue) => {
