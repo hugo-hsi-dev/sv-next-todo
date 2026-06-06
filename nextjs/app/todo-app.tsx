@@ -122,7 +122,7 @@ export function TodoApp({ initialTodos }: { initialTodos: TodoView[] }) {
                   ) : (
                     <>
                       <span
-                        className={`flex h-9 min-w-0 items-center truncate text-sm ${
+                        className={`flex h-9 min-w-0 items-center truncate px-2 text-sm ${
                           todo.completed ? "text-zinc-400 line-through" : "text-zinc-900"
                         }`}
                       >

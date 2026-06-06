@@ -105,7 +105,7 @@
 			</form>
 		{:else}
 			<span
-				class={`flex h-9 min-w-0 items-center truncate text-sm ${
+				class={`flex h-9 min-w-0 items-center truncate px-2 text-sm ${
 					todo.completed ? 'text-zinc-400 line-through' : 'text-zinc-900'
 				}`}
 			>
