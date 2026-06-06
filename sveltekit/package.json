@@ -52,6 +52,9 @@
 	},
 	"dependencies": {
 		"better-sqlite3": "^12.8.0",
+		"bits-ui": "^2.18.1",
+		"mode-watcher": "^1.1.0",
+		"svelte-sonner": "^1.1.1",
 		"zod": "^4.4.3"
 	}
 }

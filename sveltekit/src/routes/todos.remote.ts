@@ -1,80 +1,55 @@
-import { command, form, query } from '$app/server';
-import { and, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
-import { z } from 'zod';
+import { command, form, query, requested } from '$app/server';
+import { invalid } from '@sveltejs/kit';
+import { and, desc, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 
 import { db } from '$lib/server/db';
-import { todos, type Todo } from '$lib/server/db/schema';
-import { getTodoTitleError, parseTodoTitle } from '$lib/todo-validation';
+import { todos } from '$lib/server/db/schema';
+import { createTodoSchema, editTodoSchema, todoIdSchema, toggleTodoSchema } from './todos/schema';
+import type { TodoItem } from './todos/type';
 
-export type TodoItem = Pick<
-	Todo,
-	'id' | 'title' | 'completed' | 'deletedAt' | 'createdAt' | 'updatedAt'
->;
-export type TodoSummary = TodoItem;
+export type { TodoItem };
 
-type TodoFormInput = {
-	id?: string | number;
-	title: string;
-};
-
-const now = () => new Date();
-const idSchema = z.coerce.number().int().positive();
-const saveTodoSchema = z.object({
-	id: z.union([z.string(), z.number()]).optional(),
-	title: z.string()
-});
-const toggleTodoSchema = z.object({ id: idSchema, completed: z.boolean() });
-
-async function refreshRequestedTodoQueries() {
-	await listTodos().refresh();
-}
-
-export const listTodos = query(async () => {
+export const listTodoIds = query(async () => {
 	return db
-		.select()
+		.select({ id: todos.id })
 		.from(todos)
 		.where(isNull(todos.deletedAt))
-		.orderBy(desc(todos.createdAt), desc(todos.id));
+		.orderBy(desc(todos.createdAt), desc(todos.id))
+		.then((rows) => rows.map(({ id }) => id));
 });
 
-export const saveTodo = form(saveTodoSchema, async (data: TodoFormInput, issue) => {
-	const error = getTodoTitleError(data.title);
+export const getTodoDetails = query.batch(todoIdSchema, async (ids) => {
+	const rows = await db.select().from(todos).where(inArray(todos.id, ids));
+	const detailsById = new Map(rows.map((todo) => [todo.id, todo]));
 
-	if (error) {
-		throw issue.title(error);
+	return (id) => detailsById.get(id) ?? invalid('Todo not found.');
+});
+
+export const createTodo = form(createTodoSchema, async ({ title }) => {
+	const updatedAt = new Date();
+
+	await db.insert(todos).values({ title, createdAt: updatedAt, updatedAt });
+	await requested(listTodoIds, 1).refreshAll();
+});
+
+export const editTodo = form(editTodoSchema, async ({ id, title }) => {
+	const [updatedTodo] = await db
+		.update(todos)
+		.set({ title, updatedAt: new Date() })
+		.where(and(eq(todos.id, id), isNull(todos.deletedAt)))
+		.returning();
+
+	if (!updatedTodo) {
+		invalid('Todo not found.');
 	}
 
-	const title = parseTodoTitle(data.title);
-	const updatedAt = now();
-	const parsedId = data.id ? idSchema.safeParse(data.id) : undefined;
-
-	if (parsedId && !parsedId.success) {
-		throw issue.title('Todo not found.');
-	}
-
-	const id = parsedId?.data;
-
-	if (id) {
-		const [updatedTodo] = await db
-			.update(todos)
-			.set({ title, updatedAt })
-			.where(and(eq(todos.id, id), isNull(todos.deletedAt)))
-			.returning({ id: todos.id });
-
-		if (!updatedTodo) {
-			throw issue.title('Todo not found.');
-		}
-	} else {
-		await db.insert(todos).values({ title, createdAt: updatedAt, updatedAt });
-	}
-
-	await refreshRequestedTodoQueries();
+	await requested(getTodoDetails, 1).refreshAll();
 });
 
 export const toggleTodo = command(toggleTodoSchema, async ({ id, completed }) => {
 	const [updatedTodo] = await db
 		.update(todos)
-		.set({ completed, updatedAt: now() })
+		.set({ completed, updatedAt: new Date() })
 		.where(and(eq(todos.id, id), isNull(todos.deletedAt)))
 		.returning({ id: todos.id });
 
@@ -82,11 +57,11 @@ export const toggleTodo = command(toggleTodoSchema, async ({ id, completed }) =>
 		throw new Error('Todo not found.');
 	}
 
-	await refreshRequestedTodoQueries();
+	await requested(getTodoDetails, 1).refreshAll();
 });
 
-export const deleteTodo = command(idSchema, async (id) => {
-	const updatedAt = now();
+export const deleteTodo = command(todoIdSchema, async (id) => {
+	const updatedAt = new Date();
 	const [updatedTodo] = await db
 		.update(todos)
 		.set({ deletedAt: updatedAt, updatedAt })
@@ -97,13 +72,13 @@ export const deleteTodo = command(idSchema, async (id) => {
 		throw new Error('Todo not found.');
 	}
 
-	await refreshRequestedTodoQueries();
+	await requested(listTodoIds, 1).refreshAll();
 });
 
-export const restoreTodo = command(idSchema, async (id) => {
+export const restoreTodo = command(todoIdSchema, async (id) => {
 	const [updatedTodo] = await db
 		.update(todos)
-		.set({ deletedAt: null, updatedAt: now(), createdAt: sql`${todos.createdAt}` })
+		.set({ deletedAt: null, updatedAt: new Date() })
 		.where(and(eq(todos.id, id), isNotNull(todos.deletedAt)))
 		.returning({ id: todos.id });
 
@@ -111,5 +86,6 @@ export const restoreTodo = command(idSchema, async (id) => {
 		throw new Error('Todo not found.');
 	}
 
-	await refreshRequestedTodoQueries();
+	await requested(listTodoIds, 1).refreshAll();
+	await requested(getTodoDetails, 1).refreshAll();
 });
