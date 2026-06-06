@@ -1,18 +1,16 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { deleteTodo, saveTodo, toggleTodo, type listTodos } from '../../todos.remote';
+	import { deleteTodo, listTodos, saveTodo, toggleTodo } from '../../todos.remote';
 	import { TODO_TITLE_MAX_LENGTH, saveTodoSchema } from '../schema';
 	import type { TodoItem } from '../type';
 
 	let {
 		todo,
-		todos,
 		setUndo
 	}: {
 		todo: TodoItem;
-		todos: ReturnType<typeof listTodos>;
-		setUndo: (todo: TodoItem) => void;
+		setUndo: () => void;
 	} = $props();
 
 	let editForm = $derived(saveTodo.for(todo.id));
@@ -28,7 +26,7 @@
 		await form
 			.submit()
 			.updates(
-				todos.withOverride((items: TodoItem[]) =>
+				listTodos().withOverride((items: TodoItem[]) =>
 					items.map((item) =>
 						item.id === todo.id ? { ...item, title, updatedAt: new Date() } : item
 					)
@@ -40,7 +38,7 @@
 		toggling = true;
 		try {
 			await toggleTodo({ id: todo.id, completed }).updates(
-				todos.withOverride((items: TodoItem[]) =>
+				listTodos().withOverride((items: TodoItem[]) =>
 					items.map((item) => (item.id === todo.id ? { ...item, completed } : item))
 				)
 			);
@@ -50,11 +48,11 @@
 	}
 
 	async function deleteAndUndo() {
-		setUndo(todo);
+		setUndo();
 		deleting = true;
 		try {
 			await deleteTodo(todo.id).updates(
-				todos.withOverride((items: TodoItem[]) => items.filter(({ id }) => id !== todo.id))
+				listTodos().withOverride((items: TodoItem[]) => items.filter(({ id }) => id !== todo.id))
 			);
 		} finally {
 			deleting = false;
@@ -63,13 +61,13 @@
 </script>
 
 <form
-	class="grid grid-cols-[auto_1fr_auto_auto] items-center gap-2 px-3 py-2"
+	class="flex items-start gap-2 px-3 py-2"
 	{...editForm.preflight(saveTodoSchema).enhance(save)}
 	oninput={() => editForm.validate()}
 >
 	<input {...editForm.fields.id.as('hidden', todo.id)} />
 	<input
-		class="size-4"
+		class="mt-2 size-4 shrink-0"
 		type="checkbox"
 		checked={todo.completed}
 		disabled={toggling}
@@ -77,7 +75,7 @@
 		aria-label="Toggle todo"
 	/>
 
-	<div class="min-w-0">
+	<div class="min-w-0 flex-1">
 		<Input
 			class={`h-8 border-transparent px-2 hover:border-zinc-200 ${todo.completed ? 'line-through' : ''}`}
 			{...editForm.fields.title.as('text', todo.title)}
@@ -91,18 +89,21 @@
 			{#each editForm.fields.title.issues() as issue (issue.message)}
 				<p class="text-sm text-red-600">{issue.message}</p>
 			{/each}
-
-			{#each editForm.fields.allIssues() as issue (issue.message)}
-				{#if !issue.path.length}
-					<p class="text-sm text-red-600">{issue.message}</p>
-				{/if}
-			{/each}
 		</div>
 	</div>
 
-	<Button variant="ghost" size="sm" type="submit" disabled={editForm.pending > 0}>Save</Button>
+	<Button class="shrink-0" variant="ghost" size="sm" type="submit" disabled={editForm.pending > 0}>
+		Save
+	</Button>
 
-	<Button variant="ghost" size="sm" type="button" disabled={deleting} onclick={deleteAndUndo}>
+	<Button
+		class="shrink-0"
+		variant="ghost"
+		size="sm"
+		type="button"
+		disabled={deleting}
+		onclick={deleteAndUndo}
+	>
 		Delete
 	</Button>
 </form>
